@@ -2,8 +2,8 @@
   "title":"My new blog",
   "keywords":"wtpress, word, blog, webtask, hacked",
   "desc":"This blog is the coolest hack I have ever done",
-  "templatePath":"templates",
-  "articlePath":"articles",
+  "templatePath":"test/notMyJadeBlog/templates",
+  "articlePath":"test/notMyJadeBlog/articles",
   "articles":[{
     "name":"This is an opening post",
     "template":"foo.jade",
