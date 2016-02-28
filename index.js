@@ -1,9 +1,7 @@
 'use latest'; // thanks @geoff
 import consolidate from 'consolidate';
 import Promise from 'bluebird';
-import github from 'github';
 import Express from 'express';
-import fs from 'fs';
 import os from 'os';
 import uuid from 'uuid';
 import path from 'path';
@@ -11,14 +9,11 @@ import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
 import marked from 'marked';
 import uniq from 'lodash/array/uniq';
-import mkdirp from 'mkdirp';
-import rimraf from 'rimraf';
+import {fs, mkdirpAsync, rimrafAsync, pathExists} from './src/util';
+import {clone} from './src/git';
 
 dotenv.config();
-Promise.promisifyAll(fs);
 const osTmp = os.tmpdir();
-const mkdirpAsync = Promise.promisify(mkdirp);
-const rimrafAsync = Promise.promisify(rimraf);
 // As taught by benji
 const noop = () => {};
 const nextTick = () => Promise.try(noop);
@@ -28,25 +23,19 @@ const app = Express();
 
 app.use(bodyParser.json());
 
-function pathExists(fp){
-  var fn = typeof fs.access === 'function' ? fs.access : fs.stat;
-	return new Promise(function (resolve) {
-		fn(fp, function (err) {
-			resolve(!err);
-		});
-	});
-}
 // Provide a tempDir
 app.use(async (req, res, next) => {
   const tempDir = getTempDir();
   req.tempDir   = tempDir;
   // req.on('end', e => rimrafAsync(tempDir));
+  console.log("Got request");
 
-  ['bundle', 'arch', 'repo'].forEach((w)=> {
+  ['bundle', 'repo'].forEach((w)=> {
     req[`${w}Dir`] = path.join(tempDir, w);
   });
-  const dirs = [req.tempDir, req.bundleDir, req.repoDir, req.archDir];
+  const dirs = [req.tempDir, req.bundleDir, req.repoDir];
   await Promise.map(dirs, dir => fs.mkdirAsync(dir));
+  console.log("Next");
   next();
 });
 
@@ -93,12 +82,13 @@ async function buildAll(engine, bundleDir, repoDir){
 if(true || process.env.DEBUG === true ){
 
   app.get('/test/:engine', async function(req, res){
-    const {bundleDir, query, params} = req;
+    const {bundleDir, repoDir, query, params} = req;
     const {engine} = params;
     const {src} = query;
-    console.log("Bundleing in", bundleDir);
+    console.log("Bundleing files", repoDir);
     try{
-      await buildAll(engine, bundleDir, src);
+      await clone(src, repoDir, process.env.GHSECRET);
+      // await buildAll(engine, bundleDir, src);
     }catch(e){
       return res.json({ status: 500, message: e.message, stack: e.stack });
     }
